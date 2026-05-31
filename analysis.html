@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>감정 분석 대시보드</title>
+<script src="data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  width:100vw; height:100vh; overflow:hidden;
+  font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  color:white;
+}
+
+#bg { position:fixed; inset:0; z-index:0; }
+#bg iframe { width:100%; height:100%; border:none; display:block; }
+#bg-blocker { position:fixed; inset:0; z-index:1; }
+#glass {
+  position:fixed; inset:0; z-index:2;
+  background:rgba(6,3,20,0.76);
+  backdrop-filter:blur(22px) saturate(0.75);
+  -webkit-backdrop-filter:blur(22px) saturate(0.75);
+  pointer-events:none;
+}
+
+#dashboard {
+  position:fixed; inset:0; z-index:10;
+  display:flex; flex-direction:column;
+  padding:24px 32px 20px;
+  gap:16px;
+}
+
+/* ── 헤더 ── */
+#header {
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0;
+}
+.nav-back {
+  font-size:12px; color:rgba(160,185,255,0.45);
+  letter-spacing:0.08em; text-decoration:none;
+  transition:color 0.2s;
+}
+.nav-back:hover { color:rgba(200,220,255,0.85); }
+.page-title {
+  font-size:11px; color:rgba(140,170,255,0.35);
+  letter-spacing:0.22em; text-transform:uppercase;
+}
+.conf-badge {
+  font-size:10px; letter-spacing:0.08em;
+  padding:4px 12px; border-radius:10px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.10);
+  color:rgba(180,205,255,0.5);
+}
+
+/* ── 분류 배너 ── */
+#classification {
+  flex-shrink:0;
+  display:flex; align-items:center; gap:18px;
+  background:rgba(255,255,255,0.035);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px; padding:14px 22px;
+}
+.status-badge {
+  font-size:22px; font-weight:700; letter-spacing:0.04em;
+  padding:6px 22px; border-radius:10px; white-space:nowrap; flex-shrink:0;
+}
+.s-normal  { background:rgba(74,222,128,0.12); color:#4ade80; border:1px solid rgba(74,222,128,0.25); }
+.s-caution { background:rgba(251,191,36,0.12);  color:#fbbf24; border:1px solid rgba(251,191,36,0.25); }
+.s-crisis  { background:rgba(239,68,68,0.14);   color:#f87171; border:1px solid rgba(239,68,68,0.28); }
+.status-desc { font-size:12px; color:rgba(190,210,255,0.55); line-height:1.65; }
+.flag-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.flag-chip {
+  font-size:9px; padding:3px 8px; border-radius:7px;
+  background:rgba(239,68,68,0.10); color:rgba(255,130,130,0.75);
+  border:1px solid rgba(239,68,68,0.18);
+}
+
+/* ── 차트 2×2 ── */
+#charts {
+  flex:1; min-height:0;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  gap:14px;
+}
+.cpanel {
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px; padding:14px 16px;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.clabel {
+  font-size:9px; color:rgba(140,170,255,0.4);
+  letter-spacing:0.16em; text-transform:uppercase;
+  flex-shrink:0; margin-bottom:8px;
+}
+.chart-wrap {
+  flex:1; min-height:0; position:relative;
+}
+.chart-wrap canvas {
+  position:absolute; inset:0;
+}
+
+/* ── 권장 조치 ── */
+#recommendations {
+  flex-shrink:0;
+  display:flex; align-items:center; gap:18px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px; padding:12px 20px;
+}
+.rec-label {
+  font-size:9px; color:rgba(140,170,255,0.4);
+  letter-spacing:0.16em; text-transform:uppercase; flex-shrink:0;
+}
+.rec-items { display:flex; gap:8px; flex-wrap:wrap; }
+.rec-item {
+  font-size:10px; color:rgba(190,210,255,0.7);
+  padding:4px 12px; border-radius:8px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+}
+</style>
+</head>
+<body>
+
+<div id="bg">
+  <iframe src="https://my.spline.design/abstractgradientbackground-q7aG6Fb1fbsmLKP67noZtC4H/"></iframe>
+</div>
+<div id="bg-blocker"></div>
+<div id="glass"></div>
+
+<div id="dashboard">
+  <div id="header">
+    <a href="deck.html" class="nav-back">← 덱으로</a>
+    <div class="page-title">감정 분석 대시보드</div>
+    <div class="conf-badge" id="conf-badge">신뢰도: —</div>
+  </div>
+
+  <div id="classification">
+    <div class="status-badge" id="status-badge">—</div>
+    <div>
+      <div class="status-desc" id="status-desc">카드 데이터를 불러오는 중...</div>
+      <div class="flag-chips" id="flag-chips"></div>
+    </div>
+  </div>
+
+  <div id="charts">
+    <div class="cpanel">
+      <div class="clabel">감정 사분면 산점도</div>
+      <div class="chart-wrap"><canvas id="c-scatter"></canvas></div>
+    </div>
+    <div class="cpanel">
+      <div class="clabel">감정 구성 비율</div>
+      <div class="chart-wrap"><canvas id="c-donut"></canvas></div>
+    </div>
+    <div class="cpanel">
+      <div class="clabel">7가지 지표 vs 기준치 (μ+σ / μ+2σ)</div>
+      <div class="chart-wrap"><canvas id="c-bar"></canvas></div>
+    </div>
+    <div class="cpanel">
+      <div class="clabel">일차별 감정 강도 추세</div>
+      <div class="chart-wrap"><canvas id="c-line"></canvas></div>
+    </div>
+  </div>
+
+  <div id="recommendations">
+    <div class="rec-label">권장 조치</div>
+    <div class="rec-items" id="rec-items"></div>
+  </div>
+</div>
+
+<script>
+// ── 감정 맵 ──
+const EMOTION_MAP = (() => {
+  const map = {};
+  EMOTION_CATEGORIES.forEach(cat => {
+    cat.groups.forEach(group => {
+      group.emotions.forEach(em => {
+        map[em] = {
+          quadrant: cat.id,
+          color:    cat.color,
+          level:    group.level,
+          valence:  (cat.id === 'yellow' || cat.id === 'green') ?  1 : -1,
+          energy:   (cat.id === 'red'    || cat.id === 'yellow') ?  1 : -1,
+        };
+      });
+    });
+  });
+  return map;
+})();
+
+// ── 공공데이터 기반 baseline ─────────────────────────────────────────
+// 가중평균 μ, 표준편차 σ — 아동·청소년 인권실태조사 통계 처리 결과
+const BASELINE = {
+  negRatio:        { mu:0.38, sigma:0.19, label:'부정 감정',    bad:true  },
+  redRatio:        { mu:0.18, sigma:0.14, label:'불쾌·고에너지', bad:true  },
+  blueRatio:       { mu:0.20, sigma:0.15, label:'불쾌·저에너지', bad:true  },
+  intensityNorm:   { mu:0.47, sigma:0.21, label:'감정 강도',    bad:false },
+  extremeRatio:    { mu:0.22, sigma:0.17, label:'극단 강도',    bad:true  },
+  volatility:      { mu:0.28, sigma:0.16, label:'감정 변동성',  bad:true  },
+  highEnergyRatio: { mu:0.52, sigma:0.20, label:'고에너지',     bad:false },
+};
+
+// ── 데이터 로드 ──
+const dayCards = [];
+for (let d = 1; d <= 5; d++) {
+  const s = JSON.parse(sessionStorage.getItem(`deck_day${d}`) || '[]');
+  dayCards.push(s[0] || null);
+}
+const filled = dayCards.filter(c => c && EMOTION_MAP[c.emotion]);
+const N = filled.length;
+
+// ── 7가지 지표 산출 + Min-Max 정규화 ──
+function computeInd() {
+  if (!N) return null;
+  const props = filled.map(c => EMOTION_MAP[c.emotion]);
+
+  const neg   = props.filter(p => p.valence < 0).length / N;
+  const red   = props.filter(p => p.quadrant === 'red').length / N;
+  const blue  = props.filter(p => p.quadrant === 'blue').length / N;
+  const highE = props.filter(p => p.energy   >  0).length / N;
+  const extr  = props.filter(p => p.level    >= 4).length / N;
+  const iAvg  = props.reduce((s,p) => s + p.level, 0) / N;
+  const iNorm = (iAvg - 1) / 4;  // Min-Max [1,5]→[0,1]
+
+  // 변동성: 인접 일차 간 감정 변화량 평균
+  let vol = 0, vc = 0;
+  for (let i = 0; i < dayCards.length - 1; i++) {
+    const a = dayCards[i]   && EMOTION_MAP[dayCards[i].emotion];
+    const b = dayCards[i+1] && EMOTION_MAP[dayCards[i+1].emotion];
+    if (a && b) {
+      vol += (Math.abs(a.valence - b.valence) + Math.abs(a.energy - b.energy)) / 4;
+      vc++;
+    }
+  }
+
+  return {
+    negRatio:       neg,
+    redRatio:       red,
+    blueRatio:      blue,
+    intensityNorm:  iNorm,
+    extremeRatio:   extr,
+    volatility:     vc > 0 ? Math.min(vol / vc, 1) : 0,
+    highEnergyRatio: highE,
+  };
+}
+
+// ── Z-점수 ──
+function z(val, key) { const {mu,sigma} = BASELINE[key]; return (val - mu) / sigma; }
+
+// ── 다중 지표 종합 판정 ──
+function classify(ind) {
+  const badKeys = Object.keys(BASELINE).filter(k => BASELINE[k].bad);
+  const zMap    = {};
+  Object.keys(BASELINE).forEach(k => { zMap[k] = z(ind[k], k); });
+
+  const crisis  = badKeys.filter(k => zMap[k] > 2);
+  const caution = badKeys.filter(k => zMap[k] > 1 && zMap[k] <= 2);
+
+  // 보조 플래그: redRatio 또는 blueRatio 단독으로도 위기 판정
+  const singleCrisis = crisis.length >= 1 && (ind.redRatio > 0.5 || ind.blueRatio > 0.5);
+
+  let status = '정상';
+  if (crisis.length >= 2 || singleCrisis) status = '위기';
+  else if (caution.length >= 2 || crisis.length >= 1) status = '주의';
+
+  const confidence = N >= 5 ? 'high' : N >= 3 ? 'medium' : 'low';
+  return { status, confidence, zMap, crisis, caution };
+}
+
+// ── 렌더 ──
+const ind = computeInd();
+Chart.defaults.color          = 'rgba(150,175,255,0.45)';
+Chart.defaults.borderColor    = 'rgba(255,255,255,0.055)';
+Chart.defaults.font.family    = "'Apple SD Gothic Neo','Noto Sans KR',sans-serif";
+
+if (!ind) {
+  document.getElementById('status-badge').textContent  = '—';
+  document.getElementById('status-desc').textContent   = '카드 데이터가 없습니다. 학생창에서 카드를 저장한 뒤 다시 확인해 주세요.';
+} else {
+  const { status, confidence, zMap, crisis, caution } = classify(ind);
+
+  // 분류 배너
+  const badge = document.getElementById('status-badge');
+  badge.textContent = status;
+  badge.className   = 'status-badge ' + (status==='위기'?'s-crisis':status==='주의'?'s-caution':'s-normal');
+
+  const confLabels = { high:'신뢰도: 높음 (5일)', medium:'신뢰도: 보통 (3–4일)', low:'신뢰도: 낮음 (1–2일)' };
+  document.getElementById('conf-badge').textContent = confLabels[confidence];
+
+  const descMap = {
+    '정상': `${N}일치 데이터를 분석한 결과 전반적으로 안정적인 감정 상태입니다.`,
+    '주의': `${N}일치 데이터 중 ${caution.length}개 지표가 주의 기준(μ+σ)을 초과했습니다.`,
+    '위기': `${N}일치 데이터 중 ${crisis.length}개 지표가 위기 기준(μ+2σ)을 초과했습니다.`,
+  };
+  document.getElementById('status-desc').textContent = descMap[status];
+
+  const fc = document.getElementById('flag-chips');
+  [...crisis, ...caution].forEach(k => {
+    const el = document.createElement('span');
+    el.className   = 'flag-chip';
+    el.textContent = BASELINE[k].label;
+    fc.appendChild(el);
+  });
+
+  // 권장 조치
+  const recsMap = {
+    '정상': ['현재 상태 유지', '정기 감정 체크 지속', '긍정 환경 강화'],
+    '주의': ['주 2회 이상 개별 대화', '감정 일지 관찰', '또래 관계 점검', '상담 대기 등록 권장'],
+    '위기': ['즉각적 개별 면담', '학교 상담사 연계', '보호자 연락 권고', '위기 상담 기관 안내'],
+  };
+  const rc = document.getElementById('rec-items');
+  recsMap[status].forEach(r => {
+    const el = document.createElement('div');
+    el.className   = 'rec-item';
+    el.textContent = r;
+    rc.appendChild(el);
+  });
+
+  // ── 사분면 색상 ──
+  const QC = { red:'#E24B4A', yellow:'#EF9F27', blue:'#378ADD', green:'#639922' };
+
+  // ── 1. 산점도 ──
+  const pts = dayCards.map((c,i) => {
+    if (!c || !EMOTION_MAP[c.emotion]) return null;
+    const p = EMOTION_MAP[c.emotion];
+    return { x:p.energy, y:p.valence, color:p.color, day:i+1 };
+  }).filter(Boolean);
+
+  new Chart(document.getElementById('c-scatter'), {
+    type:'scatter',
+    data:{ datasets:[{
+      data: pts.map(d=>({x:d.x,y:d.y})),
+      backgroundColor: pts.map(d=>d.color+'bb'),
+      borderColor:     pts.map(d=>d.color),
+      borderWidth:1, pointRadius:9, pointHoverRadius:11,
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label:(ctx)=>`${pts[ctx.dataIndex]?.day}일차` } }
+      },
+      scales:{
+        x:{ min:-1.5,max:1.5, title:{display:true,text:'← 저에너지   고에너지 →',font:{size:8}},
+            ticks:{display:false}, grid:{color:'rgba(255,255,255,0.05)'} },
+        y:{ min:-1.5,max:1.5, title:{display:true,text:'← 부정   긍정 →',font:{size:8}},
+            ticks:{display:false}, grid:{color:'rgba(255,255,255,0.05)'} },
+      }
+    }
+  });
+
+  // ── 2. 도넛 ──
+  const qc = {red:0,yellow:0,blue:0,green:0};
+  filled.forEach(c => { const p=EMOTION_MAP[c.emotion]; if(p) qc[p.quadrant]++; });
+  const qLabels = {red:'빨강',yellow:'노랑',blue:'파랑',green:'초록'};
+
+  new Chart(document.getElementById('c-donut'), {
+    type:'doughnut',
+    data:{
+      labels:Object.keys(qc).map(k=>qLabels[k]),
+      datasets:[{
+        data: Object.values(qc),
+        backgroundColor: Object.keys(qc).map(k=>QC[k]+'bb'),
+        borderColor:     Object.keys(qc).map(k=>QC[k]),
+        borderWidth:1,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:false,
+      plugins:{ legend:{ position:'bottom', labels:{font:{size:9},padding:5,boxWidth:9} } },
+      cutout:'62%',
+    }
+  });
+
+  // ── 3. 막대 ──
+  const bKeys  = Object.keys(BASELINE);
+  const bVals  = bKeys.map(k => +(ind[k]*100).toFixed(1));
+  const bWarn  = bKeys.map(k => +((BASELINE[k].mu+BASELINE[k].sigma)*100).toFixed(1));
+  const bCris  = bKeys.map(k => +((BASELINE[k].mu+2*BASELINE[k].sigma)*100).toFixed(1));
+
+  new Chart(document.getElementById('c-bar'), {
+    type:'bar',
+    data:{
+      labels: bKeys.map(k=>BASELINE[k].label),
+      datasets:[
+        {
+          label:'학생',
+          data: bVals,
+          backgroundColor: bKeys.map(k => {
+            if (!BASELINE[k].bad) return 'rgba(100,155,255,0.5)';
+            const zv = zMap[k];
+            return zv>2?'rgba(239,68,68,0.55)':zv>1?'rgba(251,191,36,0.55)':'rgba(74,222,128,0.5)';
+          }),
+          borderRadius:3, borderWidth:0,
+        },
+        { label:'μ+σ', data:bWarn, type:'line', borderColor:'rgba(251,191,36,0.45)',
+          borderDash:[4,3], borderWidth:1.5, pointRadius:0, fill:false },
+        { label:'μ+2σ', data:bCris, type:'line', borderColor:'rgba(239,68,68,0.45)',
+          borderDash:[2,2], borderWidth:1.5, pointRadius:0, fill:false },
+      ]
+    },
+    options:{
+      animation:false,
+      scales:{
+        x:{ ticks:{font:{size:8},maxRotation:30}, grid:{display:false} },
+        y:{ min:0,max:100, ticks:{font:{size:8},callback:v=>v+'%'}, grid:{color:'rgba(255,255,255,0.04)'} }
+      },
+      plugins:{ legend:{display:false} }
+    }
+  });
+
+  // ── 4. 라인 ──
+  const lineData   = dayCards.map(c => c&&EMOTION_MAP[c.emotion] ? EMOTION_MAP[c.emotion].level : null);
+  const linePtClr  = dayCards.map(c => c&&EMOTION_MAP[c.emotion] ? EMOTION_MAP[c.emotion].color : 'transparent');
+
+  new Chart(document.getElementById('c-line'), {
+    type:'line',
+    data:{
+      labels:['1일차','2일차','3일차','4일차','5일차'],
+      datasets:[{
+        label:'강도',
+        data: lineData,
+        borderColor:'rgba(150,175,255,0.65)',
+        backgroundColor:'rgba(110,145,255,0.07)',
+        borderWidth:2,
+        pointBackgroundColor: linePtClr,
+        pointBorderColor:     linePtClr,
+        pointRadius:6,
+        fill:true, tension:0.35, spanGaps:true,
+      }]
+    },
+    options:{
+      animation:false,
+      scales:{
+        x:{ ticks:{font:{size:9}}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y:{ min:0.5, max:5.5, ticks:{ font:{size:9}, stepSize:1,
+              callback:v=>(['','살짝','좀','꽤','많이','너무'][v]||'') }, grid:{color:'rgba(255,255,255,0.04)'} }
+      },
+      plugins:{ legend:{display:false} }
+    }
+  });
+}
+</script>
+</body>
+</html>

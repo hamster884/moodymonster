@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공공데이터대회</title>
+<script src="data.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 100vw; height: 100vh; overflow: hidden; font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; }
+
+  /* ── 역할 네비 ── */
+  #role-nav {
+    position: fixed; top: 24px; left: 24px;
+    z-index: 100;
+    display: flex; gap: 8px;
+  }
+
+  /* ── 일차 네비 ── */
+  #day-nav {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 100; display: flex; gap: 6px;
+  }
+  .day-btn {
+    padding: 8px 16px; border-radius: 20px;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.45);
+    backdrop-filter: blur(10px);
+    cursor: pointer; font-family: inherit;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .day-btn:hover { background: rgba(255,255,255,0.12); color: white; }
+  .day-btn.active {
+    background: rgba(255,255,255,0.16);
+    border-color: rgba(255,255,255,0.5);
+    color: white;
+  }
+  .day-btn.done { cursor: default; opacity: 0.65; }
+  .day-btn.done::after {
+    content: '✓';
+    position: absolute; top: -4px; right: -4px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #6ee7a0; color: #0a2a18;
+    font-size: 9px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 14px; text-align: center;
+  }
+  .role-btn {
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+  }
+  .role-btn:hover {
+    background: rgba(255,255,255,0.16);
+    color: white;
+  }
+  .role-btn.active {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.5);
+    color: white;
+  }
+
+  /* ── 배경 ── */
+  #bg { position: fixed; inset: 0; z-index: 0; }
+  #bg iframe { width: 100%; height: 100%; border: none; display: block; }
+  #bg-blocker { position: fixed; inset: 0; z-index: 1; }
+  #dark-overlay {
+    position: fixed; inset: 0; z-index: 2;
+    background: rgba(0,0,0,0.38);
+  }
+  #glass {
+    position: fixed; inset: 0; z-index: 3;
+    background: rgba(10,5,30,0.22);
+    backdrop-filter: blur(10px) saturate(1.1);
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    pointer-events: none;
+  }
+
+  /* ── 덱 ── */
+  #deck { position: fixed; bottom: 40px; left: 40px; z-index: 50; }
+  .deck-card {
+    width: 80px; height: 112px;
+    background: url('back.png') center/cover no-repeat;
+    border-radius: 6px;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 8px;
+    font-size: 11px; color: white;
+    font-weight: 600; letter-spacing: 0.03em;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 16px rgba(140,60,255,0.25);
+  }
+
+  /* ── 카드 영역 ── */
+  #content {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .scene {
+    width: 260px; height: 364px; perspective: 900px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .scene.visible { opacity: 1; pointer-events: auto; }
+
+  .float-wrap {
+    width: 100%; height: 100%;
+    animation: cardFloat 4s ease-in-out infinite;
+  }
+  .c3d {
+    width: 100%; height: 100%;
+    position: relative; transform-style: preserve-3d;
+    animation: cardSpin 8s linear infinite;
+    cursor: pointer;
+  }
+  .c3d-face {
+    position: absolute; inset: 0; border-radius: 16px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  }
+
+  /* 앞면 - 이미지 있을 때 심볼 숨김 */
+  .c3d-front.has-image .card-corner,
+  .c3d-front.has-image .card-center-symbol { display: none; }
+
+  .c3d-front {
+    background: linear-gradient(135deg, #1a0533 0%, #2d0b5a 40%, #1a1060 100%);
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 0 40px rgba(140,60,255,0.5), 0 0 80px rgba(100,40,200,0.3), inset 0 0 40px rgba(255,255,255,0.04);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .c3d-front::before {
+    content: ''; position: absolute; inset: 0; border-radius: 16px;
+    background: linear-gradient(115deg, transparent 30%, rgba(180,120,255,0.12) 45%, rgba(255,200,255,0.18) 50%, rgba(120,180,255,0.12) 55%, transparent 70%);
+    animation: shimmer 3s ease-in-out infinite;
+  }
+  .card-corner {
+    position: absolute; font-size: 18px; font-weight: bold;
+    color: rgba(255,255,255,0.85); line-height: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .card-corner span { font-size: 12px; }
+  .card-corner.tl { top: 14px; left: 16px; }
+  .card-corner.br { bottom: 14px; right: 16px; transform: rotate(180deg); }
+  .card-center-symbol {
+    font-size: 72px;
+    filter: drop-shadow(0 0 12px rgba(180,120,255,0.8));
+    animation: pulse 4s ease-in-out infinite;
+  }
+
+  /* 뒷면 */
+  .c3d-back {
+    background: url('back.png') center/cover no-repeat;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 0 40px rgba(140,60,255,0.4), 0 0 80px rgba(100,40,200,0.2);
+    transform: rotateY(180deg);
+    overflow: hidden;
+  }
+
+  /* 메모 오버레이 — 카드 뒷면에 직접 쓰는 느낌 */
+  .memo-overlay {
+    position: absolute; inset: 0; border-radius: 16px;
+    background: rgba(8, 4, 24, 0.78);
+    backdrop-filter: blur(3px);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s ease;
+    display: flex; flex-direction: column;
+    padding: 22px 18px 18px; overflow: hidden;
+    gap: 12px;
+  }
+  .memo-overlay.active { opacity: 1; pointer-events: auto; }
+  .memo-question {
+    font-size: 12.5px; color: rgba(255,255,255,0.88);
+    line-height: 1.6; letter-spacing: 0.02em;
+    text-align: center; flex-shrink: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+  }
+  .memo-textarea {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-size: 13px; line-height: 1.8; color: rgba(255,255,255,0.9);
+    resize: none; font-family: inherit;
+    caret-color: rgba(180,120,255,0.9);
+  }
+  .memo-textarea::placeholder {
+    color: rgba(255,255,255,0.25);
+  }
+
+  /* ── 스크린 시스템 ── */
+  .screen {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 36px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  .screen.active { opacity: 1; pointer-events: auto; }
+
+  /* 환영 */
+  #s-welcome { cursor: pointer; gap: 16px; }
+  .welcome-title {
+    font-size: 36px; font-weight: 300; color: white;
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 60px rgba(180,120,255,0.9), 0 2px 20px rgba(0,0,0,0.5);
+  }
+  .welcome-hint {
+    font-size: 13px; color: rgba(255,255,255,0.35);
+    letter-spacing: 0.15em;
+  }
+
+  /* 뒤로가기 버튼 */
+  .back-btn {
+    position: absolute; top: 28px; right: 40px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 0.06em;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.55);
+    backdrop-filter: blur(10px);
+    cursor: pointer; font-family: inherit;
+    transition: all 0.2s ease;
+  }
+  .back-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: white;
+  }
+
+  /* 감정 선택 공통 */
+  .screen-label {
+    font-size: 13px; color: rgba(255,255,255,0.4);
+    letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .btn-row { display: flex; gap: 20px; }
+  .emotion-btn {
+    padding: 18px 44px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 14px; color: white;
+    font-size: 22px; cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s ease;
+    letter-spacing: 0.04em; font-family: inherit;
+  }
+  .emotion-btn:hover {
+    background: rgba(255,255,255,0.14);
+    border-color: rgba(255,255,255,0.35);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(140,60,255,0.25);
+  }
+
+  /* 카드 팩 */
+  #card-pack {
+    width: 278px; height: 390px;
+    background: transparent;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px; color: #999;
+    letter-spacing: 0.08em;
+    box-shadow: none;
+    transition: transform 0.3s ease;
+    overflow: hidden;
+  }
+  #card-pack img {
+    width: 100%; height: 100%; object-fit: contain;
+    filter: drop-shadow(6px 6px 0 rgba(255,255,255,0.5)) drop-shadow(12px 12px 0 rgba(255,255,255,0.25)) drop-shadow(0 24px 40px rgba(0,0,0,0.5));
+  }
+  #card-pack:hover { transform: translateY(-8px) rotate(-2deg); }
+
+  /* ── 잠금 버튼 (없는 감정/그룹) ── */
+  .emotion-btn.locked {
+    border-color: rgba(255,255,255,0.12) !important;
+    color: rgba(255,255,255,0.3) !important;
+    cursor: default;
+    pointer-events: none;
+    box-shadow: none !important;
+  }
+
+  /* ── 키프레임 ── */
+  @keyframes cardSpin {
+    from { transform: rotateY(0deg) rotateX(6deg); }
+    to   { transform: rotateY(360deg) rotateX(6deg); }
+  }
+  @keyframes cardFloat {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-18px); }
+  }
+  @keyframes shimmer {
+    0%, 100% { opacity: 0.4; transform: translateX(-30px); }
+    50%       { opacity: 1; transform: translateX(30px); }
+  }
+  @keyframes pulse {
+    0%, 100% { filter: drop-shadow(0 0 12px rgba(180,120,255,0.8)); }
+    50%       { filter: drop-shadow(0 0 24px rgba(220,160,255,1)); }
+  }
+</style>
+</head>
+<body>
+
+  <!-- 역할 선택 버튼 -->
+  <div id="role-nav">
+    <a href="index.html" class="role-btn active">Student</a>
+    <a href="teacher.html" class="role-btn">Teacher</a>
+  </div>
+
+  <!-- 일차 선택 -->
+  <div id="day-nav">
+    <button class="day-btn active" data-day="1">1일차</button>
+    <button class="day-btn" data-day="2">2일차</button>
+    <button class="day-btn" data-day="3">3일차</button>
+    <button class="day-btn" data-day="4">4일차</button>
+    <button class="day-btn" data-day="5">5일차</button>
+  </div>
+
+  <!-- 배경 -->
+  <div id="bg">
+    <iframe src="https://my.spline.design/abstractgradientbackground-q7aG6Fb1fbsmLKP67noZtC4H/"></iframe>
+  </div>
+  <div id="bg-blocker"></div>
+  <div id="dark-overlay"></div>
+  <div id="glass"></div>
+
+  <!-- 덱 -->
+  <div id="deck"><div class="deck-card" onclick="event.stopPropagation(); location.href='deck.html'" style="cursor:pointer;">이로은</div></div>
+
+  <!-- 카드 -->
+  <div id="content">
+    <div class="scene" id="card-scene">
+      <div class="float-wrap" id="float-wrap">
+        <div class="c3d" id="c3d">
+          <div class="c3d-face c3d-front">
+            <div class="card-corner tl">A<span>♠</span></div>
+            <div class="card-corner br">A<span>♠</span></div>
+            <div class="card-center-symbol">♠</div>
+            <!-- 감정 선택 시 해당 캐릭터 이미지가 여기 오버랩 -->
+            <img id="card-char-img" src="" alt=""
+              style="position:absolute;inset:0;width:100%;height:100%;
+                     object-fit:cover;border-radius:16px;
+                     opacity:0;transition:opacity 0.5s ease;pointer-events:none;" />
+          </div>
+          <div class="c3d-face c3d-back">
+            <div class="memo-overlay" id="memo-overlay">
+              <div class="memo-question" id="memo-question"></div>
+              <textarea class="memo-textarea" id="memo-ta" placeholder="여기에 적어봐요..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스크린: 환영 -->
+  <div class="screen active" id="s-welcome">
+    <div class="welcome-title">반가워요, 이로은 학생</div>
+    <div class="welcome-hint">화면을 클릭해 시작하세요</div>
+  </div>
+
+  <!-- 스크린: 1단계 사분면 -->
+  <div class="screen" id="s-emotion1">
+    <div class="screen-label">지금 기분이 어때요?</div>
+    <div class="btn-row" id="e1-row" style="flex-wrap:wrap;justify-content:center;gap:16px;"></div>
+  </div>
+
+  <!-- 스크린: 2단계 강도 -->
+  <div class="screen" id="s-emotion2">
+    <button class="back-btn" id="back-e2">← 뒤로</button>
+    <div class="screen-label" id="e2-label">얼마나 그래요?</div>
+    <div class="btn-row" id="e2-row" style="gap:12px;"></div>
+  </div>
+
+  <!-- 스크린: 3단계 세부감정 -->
+  <div class="screen" id="s-emotion3">
+    <button class="back-btn" id="back-e3">← 뒤로</button>
+    <div class="screen-label">딱 맞는 감정을 골라봐요</div>
+    <div class="btn-row" id="e3-row" style="flex-wrap:wrap;justify-content:center;gap:12px;max-width:600px;"></div>
+  </div>
+
+  <!-- 스크린: 카드팩 -->
+  <div class="screen" id="s-cardpack">
+    <button class="back-btn" id="back-pack">← 뒤로</button>
+    <div id="card-pack"><img src="cards/cardpack.png" alt="카드 팩"></div>
+  </div>
+
+<script>
+  const scene       = document.getElementById('card-scene');
+  const floatWrap   = document.getElementById('float-wrap');
+  const c3d         = document.getElementById('c3d');
+  const memoOverlay = document.getElementById('memo-overlay');
+  const memoTa      = document.getElementById('memo-ta');
+  const cardCharImg = document.getElementById('card-char-img');
+
+  // ── 일차별 인메모리 카드 저장소 ──
+  const dayCards = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+  let currentDay = 1;
+
+  // ── 완료된 일차 복원 (덱/교사 창 다녀와도 유지) ──
+  (function restoreDoneDays() {
+    const doneDays = JSON.parse(sessionStorage.getItem('days_done') || '[]');
+    doneDays.forEach(d => {
+      const btn = document.querySelector(`.day-btn[data-day="${d}"]`);
+      if (btn) btn.classList.add('done');
+    });
+  })();
+
+  function switchDay(day) {
+    if (day === currentDay) return;
+    const doneDays = JSON.parse(sessionStorage.getItem('days_done') || '[]');
+    if (doneDays.includes(day)) return;
+    currentDay = day;
+    // 버튼 active 갱신
+    document.querySelectorAll('.day-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.day) === day);
+    });
+    // 진행 중인 선택 초기화 후 환영 화면
+    selectedCat = null; selectedGroup = null; selectedEmotion = null;
+    cardCharImg.src = ''; cardCharImg.style.opacity = '0';
+    document.querySelector('.c3d-front').classList.remove('has-image');
+    memoTa.value = '';
+    memoOverlay.classList.remove('active');
+    scene.classList.remove('visible');
+    go('welcome');
+  }
+
+  document.querySelectorAll('.day-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchDay(parseInt(btn.dataset.day)));
+  });
+
+  // 감정별 질문
+  const EMOTION_QUESTIONS = {
+    '행복한':   '오늘 학교에서 누구를 제일 보고 싶어?',
+    '열광적인':  '오늘 어떤 일이 있으면 진짜 신날 것 같아?',
+    '슬픈':     '오늘 아침에 누구랑 같이 있고 싶었어?',
+    '외로운':   '학교 가는 길에 누가 떠올랐어?',
+    '좌절한':   '어제 잠들기 전에 어떤 생각이 제일 많이 났어?',
+    '분노한':   '오늘 누군가에게 꼭 하고 싶은 말이 있어?',
+    '평온한':   '오늘 학교에서 조용히 하고 싶은 게 있어?',
+    '감사하는':  '오늘 누구한테 고맙다고 말하고 싶어?',
+  };
+
+  // 실제 카드 이미지가 존재하는 감정 목록
+  const AVAILABLE_EMOTIONS = new Set([
+    '행복한', '열광적인',
+    '슬픈', '외로운',
+    '좌절한', '분노한',
+    '평온한', '감사하는',
+  ]);
+
+  let state = 'welcome';
+  let selectedCat   = null;
+  let selectedGroup = null;
+  let selectedEmotion = null;
+
+  /* ── 스크린 전환 ── */
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    if (id) document.getElementById(id).classList.add('active');
+  }
+
+  /* ── 상태 전환 ── */
+  function go(next) {
+    state = next;
+    if (next === 'welcome')  { showScreen('s-welcome'); }
+    if (next === 'emotion1') { showScreen('s-emotion1'); }
+    if (next === 'emotion2') { buildEmotion2(); showScreen('s-emotion2'); }
+    if (next === 'emotion3') { buildEmotion3(); showScreen('s-emotion3'); }
+    if (next === 'cardpack') { showScreen('s-cardpack'); }
+    if (next === 'spinning') { showScreen(null); startSpin(); }
+    if (next === 'front')    { showFront(); }
+    if (next === 'memo')     { showMemo(); }
+  }
+
+  /* 2단계: 강도 그룹 */
+  function buildEmotion2() {
+    const row   = document.getElementById('e2-row');
+    const label = document.getElementById('e2-label');
+    row.innerHTML = '';
+    label.textContent = `${selectedCat.name} — 얼마나 그래요?`;
+    selectedCat.groups.forEach(group => {
+      const hasCard = group.emotions.some(e => AVAILABLE_EMOTIONS.has(e));
+      const btn = document.createElement('button');
+      btn.className = 'emotion-btn' + (hasCard ? '' : ' locked');
+      btn.textContent = group.label;
+      if (hasCard) {
+        btn.style.borderColor = selectedCat.color + '88';
+        btn.style.color = selectedCat.color;
+        btn.addEventListener('click', () => {
+          selectedGroup = group;
+          go('emotion3');
+        });
+      }
+      row.appendChild(btn);
+    });
+  }
+
+  /* 3단계: 세부 감정 */
+  function buildEmotion3() {
+    const row = document.getElementById('e3-row');
+    row.innerHTML = '';
+    selectedGroup.emotions.forEach(name => {
+      const isAvailable = AVAILABLE_EMOTIONS.has(name);
+      const btn = document.createElement('button');
+      btn.className = 'emotion-btn' + (isAvailable ? '' : ' locked');
+      btn.textContent = name;
+      btn.style.borderColor = selectedCat.color + '88';
+
+      if (isAvailable) {
+        btn.addEventListener('click', () => {
+          selectedEmotion = name;
+          const imgSrc = EMOTION_TO_CARD[name];
+          if (imgSrc) {
+            cardCharImg.src = imgSrc;
+            cardCharImg.style.opacity = '0';
+            document.querySelector('.c3d-front').classList.add('has-image');
+          }
+          go('cardpack');
+        });
+      }
+
+      row.appendChild(btn);
+    });
+  }
+
+  /* ── 스피닝 카드 ── */
+  function startSpin() {
+    floatWrap.style.animation = 'cardFloat 4s ease-in-out infinite';
+    c3d.style.transition = '';
+    c3d.style.animation = 'cardSpin 8s linear infinite';
+    c3d.style.transform = '';
+    floatWrap.style.transform = '';
+    // 스피닝 시작부터 이미지 표시
+    if (cardCharImg.src && !cardCharImg.src.endsWith('/')) {
+      cardCharImg.style.opacity = '1';
+    }
+    scene.classList.add('visible');
+  }
+
+  /* ── 앞면 고정 + 캐릭터 이미지 오버랩 ── */
+  function showFront() {
+    // 이미지 페이드인
+    if (cardCharImg.src && !cardCharImg.src.endsWith('/')) {
+      cardCharImg.style.opacity = '1';
+    }
+    // 현재 위치 캡처 후 애니메이션 정지
+    floatWrap.style.animationPlayState = 'paused';
+    c3d.style.animationPlayState = 'paused';
+
+    const snapC3d   = getComputedStyle(c3d).transform;
+    const snapFloat = getComputedStyle(floatWrap).transform;
+
+    floatWrap.style.animation = 'none';
+    c3d.style.animation = 'none';
+    floatWrap.style.transform = snapFloat;
+    c3d.style.transform = snapC3d;
+
+    void c3d.offsetHeight;
+
+    floatWrap.style.transition = 'transform 0.5s ease';
+    c3d.style.transition = 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+    floatWrap.style.transform = 'translateY(0px)';
+    c3d.style.transform = 'rotateY(0deg) rotateX(0deg)';
+  }
+
+  /* ── 뒷면(메모) ── */
+  function showMemo() {
+    // 질문 세팅
+    const q = EMOTION_QUESTIONS[selectedEmotion] || '오늘 어떤 하루였어?';
+    document.getElementById('memo-question').textContent = q;
+
+    c3d.style.transition = 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)';
+    c3d.style.transform = 'rotateY(180deg) rotateX(0deg)';
+    setTimeout(() => {
+      memoOverlay.classList.add('active');
+      memoTa.focus();
+    }, 380);
+  }
+
+  /* ── 덱으로 날아가기 ── */
+  function flyToDeck() {
+    state = 'flying';
+    memoOverlay.classList.remove('active');
+
+    const sr = scene.getBoundingClientRect();
+    const dr = document.querySelector('.deck-card').getBoundingClientRect();
+    const tx = (dr.left + dr.width  / 2) - (sr.left + sr.width  / 2);
+    const ty = (dr.top  + dr.height / 2) - (sr.top  + sr.height / 2);
+    const sc = Math.min(dr.width / sr.width, dr.height / sr.height);
+
+    // 애니메이션 정지, float도 고정
+    c3d.style.animation = 'none';
+    floatWrap.style.animation = 'none';
+    floatWrap.style.transform = 'translateY(0)';
+
+    void scene.offsetHeight;
+
+    // 카드 빙글 + scene 날아가기 동시 실행
+    c3d.style.transition = 'transform 1.1s linear';
+    c3d.style.transform = 'rotateY(720deg) rotateX(0deg)';
+
+    scene.style.transition = 'transform 1.1s cubic-bezier(0.4, 0, 0.8, 1)';
+    scene.style.transform = `translate(${tx}px, ${ty}px) scale(${sc})`;
+
+    // 도착 직전에 페이드아웃
+    setTimeout(() => {
+      scene.style.transition = 'opacity 0.25s ease';
+      scene.style.opacity = '0';
+    }, 950);
+
+    // 카드 저장 (인메모리 + sessionStorage)
+    if (selectedEmotion) {
+      const cardData = {
+        emotion: selectedEmotion,
+        cardSrc: EMOTION_TO_CARD[selectedEmotion] || '',
+        memo: memoTa.value,
+        question: EMOTION_QUESTIONS[selectedEmotion] || '오늘 어떤 하루였어?',
+      };
+      dayCards[currentDay].push(cardData);
+
+      // deck.html이 읽을 수 있도록 sessionStorage에 저장 (탭 닫으면 자동 초기화)
+      const key = `deck_day${currentDay}`;
+      const existing = JSON.parse(sessionStorage.getItem(key) || '[]');
+      existing.push(cardData);
+      sessionStorage.setItem(key, JSON.stringify(existing));
+
+      // 완료 체크 + sessionStorage에 영구 저장
+      const doneDays = JSON.parse(sessionStorage.getItem('days_done') || '[]');
+      if (!doneDays.includes(currentDay)) {
+        doneDays.push(currentDay);
+        sessionStorage.setItem('days_done', JSON.stringify(doneDays));
+      }
+      const btn = document.querySelector(`.day-btn[data-day="${currentDay}"]`);
+      if (btn) btn.classList.add('done');
+    }
+
+    // 전체 리셋
+    setTimeout(() => {
+      scene.classList.remove('visible');
+      scene.style.transition = '';
+      scene.style.transform = '';
+      scene.style.opacity = '';
+      c3d.style.transition = '';
+      c3d.style.transform = '';
+      c3d.style.animation = '';
+      floatWrap.style.animation = '';
+      floatWrap.style.transform = '';
+      memoTa.value = '';
+      cardCharImg.src = '';
+      cardCharImg.style.opacity = '0';
+      document.querySelector('.c3d-front').classList.remove('has-image');
+      selectedCat     = null;
+      selectedGroup   = null;
+      selectedEmotion = null;
+      state = 'done';
+    }, 1200);
+  }
+
+  /* ── 이벤트 ── */
+
+  // 1단계: 사분면 버튼 (color 적용)
+  (function buildEmotion1() {
+    const row = document.getElementById('e1-row');
+    EMOTION_CATEGORIES.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'emotion-btn';
+      btn.innerHTML = `<span style="font-size:20px">${cat.name}</span><br><span style="font-size:11px;opacity:0.7;letter-spacing:0.04em">${cat.description}</span>`;
+      btn.style.padding = '18px 32px';
+      btn.style.borderColor = cat.color + 'aa';
+      btn.style.boxShadow = `0 0 20px ${cat.color}33`;
+      btn.addEventListener('mouseenter', () => btn.style.boxShadow = `0 0 30px ${cat.color}66`);
+      btn.addEventListener('mouseleave', () => btn.style.boxShadow = `0 0 20px ${cat.color}33`);
+      btn.addEventListener('click', () => {
+        selectedCat = cat;
+        go('emotion2');
+      });
+      row.appendChild(btn);
+    });
+  })();
+
+  // 환영 → 감정1
+  document.getElementById('s-welcome').addEventListener('click', () => {
+    if (state === 'welcome') go('emotion1');
+  });
+
+  // 카드팩 클릭 → 페이드아웃 → 스피닝
+  document.getElementById('card-pack').addEventListener('click', () => {
+    const pack = document.getElementById('s-cardpack');
+    pack.style.transition = 'opacity 0.5s ease';
+    pack.style.opacity = '0';
+    setTimeout(() => {
+      pack.style.opacity = '';
+      pack.style.transition = '';
+      go('spinning');
+    }, 500);
+  });
+
+  // 카드 클릭: 스피닝 → 앞면, 앞면 → 메모
+  scene.addEventListener('click', (e) => {
+    if (state === 'spinning') { go('front'); return; }
+    if (state === 'front')    { go('memo');  return; }
+  });
+
+  // 메모 상태에서 카드 외부 클릭 → 덱으로
+  document.addEventListener('click', (e) => {
+    if (state === 'memo' && !scene.contains(e.target)) flyToDeck();
+  });
+
+  // 뒤로가기
+  document.getElementById('back-e2').addEventListener('click', () => {
+    selectedCat = null;
+    go('emotion1');
+  });
+  document.getElementById('back-e3').addEventListener('click', () => {
+    selectedGroup = null;
+    go('emotion2');
+  });
+  document.getElementById('back-pack').addEventListener('click', () => {
+    selectedEmotion = null;
+    cardCharImg.src = '';
+    cardCharImg.style.opacity = '0';
+    document.querySelector('.c3d-front').classList.remove('has-image');
+    go('emotion3');
+  });
+
+  // 메모장 클릭은 버블링 막기
+  memoTa.addEventListener('click', e => e.stopPropagation());
+  memoOverlay.addEventListener('click', e => e.stopPropagation());
+</script>
+</body>
+</html>
