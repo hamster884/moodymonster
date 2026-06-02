@@ -7,7 +7,7 @@ const EMOTION_CATEGORIES = [
   {
     id: 'red',
     name: '빨강',
-    description: '불쾌 + 고에너지',
+    description: '화나는',
     color: '#E24B4A',
     groups: [
       { level: 1, label: '살짝', emotions: ['불편한', '언짢은', '초조한', '질투하는', '신경질적인'] },
@@ -20,7 +20,7 @@ const EMOTION_CATEGORIES = [
   {
     id: 'yellow',
     name: '노랑',
-    description: '유쾌 + 고에너지',
+    description: '신나는',
     color: '#EF9F27',
     groups: [
       { level: 1, label: '살짝', emotions: ['기분 좋은', '생기 있는', '만족스러운', '따뜻한', '영감을 받은'] },
@@ -33,7 +33,7 @@ const EMOTION_CATEGORIES = [
   {
     id: 'blue',
     name: '파랑',
-    description: '불쾌 + 저에너지',
+    description: '슬픈',
     color: '#378ADD',
     groups: [
       { level: 1, label: '살짝', emotions: ['멍한', '무관심한', '냉담한', '낙심한', '실망한'] },
@@ -46,7 +46,7 @@ const EMOTION_CATEGORIES = [
   {
     id: 'green',
     name: '초록',
-    description: '유쾌 + 저에너지',
+    description: '편안한',
     color: '#639922',
     groups: [
       { level: 1, label: '살짝', emotions: ['평온한', '신중한', '수줍은', '정적인', '고독한'] },
