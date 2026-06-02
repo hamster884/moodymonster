@@ -1,0 +1,97 @@
+{
+  "_meta": {
+    "source": "아동청소년인권실태조사 2020-2024 (초4-6학년)",
+    "correction_note": "2026-05-31: 변수 매핑 오류 수정. 2020-2022의 부정정서 문항은 Q30이 아닌 Q23A1~A3, 2023은 Q27A1~A3. Q30A1~A3(2020-2022)은 학교생활만족도 문항이었음.",
+    "variable_mapping": {
+      "2020": "Q23A1~A3 (부정정서), Q23A4 (자존감 1문항)",
+      "2021": "Q23A1~A3 (부정정서), Q23A4 (자존감 1문항)",
+      "2022": "Q23A1~A3 (부정정서), Q23A4 (자존감 1문항)",
+      "2023": "Q27A1~A3 (부정정서), Q27A4~A6 (자존감 3문항)",
+      "2024": "Q30A1~A3 (부정정서), Q30A4~A6 (자존감 3문항)"
+    },
+    "reference_basis": "5개년 풀링 (NEG), 2024 단독 (SE — 3문항 척도 일관성)",
+    "scale": "normalized [0, 1] via Min-Max",
+    "generated": "2026-05-31"
+  },
+
+  "negative_emotion": {
+    "raw_by_year": {
+      "2020": { "mean": 1.5803, "std": 0.7587, "n": 2882, "var": "Q23A1~A3" },
+      "2021": { "mean": 1.6418, "std": 0.8045, "n": 2850, "var": "Q23A1~A3" },
+      "2022": { "mean": 1.7147, "std": 0.8298, "n": 2715, "var": "Q23A1~A3" },
+      "2023": { "mean": 1.7714, "std": 0.8260, "n": 2829, "var": "Q27A1~A3" },
+      "2024": { "mean": 1.7864, "std": 0.8456, "n": 2725, "var": "Q30A1~A3" }
+    },
+    "raw": {
+      "mean": 1.6976,
+      "std": 0.8129,
+      "n": 14001,
+      "basis": "5개년 가중 풀링",
+      "likert_range": [1, 4]
+    },
+    "normalized": {
+      "mean": 0.2325,
+      "std": 0.2710,
+      "warning_threshold": 0.5035,
+      "crisis_threshold": 0.7745
+    }
+  },
+
+  "self_esteem": {
+    "raw_by_year": {
+      "2020": { "mean": 2.9430, "std": 1.0289, "n": 2882, "var": "Q23A4 (1문항)" },
+      "2021": { "mean": 2.9848, "std": 1.0239, "n": 2850, "var": "Q23A4 (1문항)" },
+      "2022": { "mean": 2.9796, "std": 1.0220, "n": 2715, "var": "Q23A4 (1문항)" },
+      "2023": { "mean": 3.1532, "std": 0.6923, "n": 2829, "var": "Q27A4~A6 (3문항)" },
+      "2024": { "mean": 3.1619, "std": 0.7135, "n": 2725, "var": "Q30A4~A6 (3문항)" }
+    },
+    "raw": {
+      "mean": 3.1619,
+      "std": 0.7135,
+      "n": 2725,
+      "basis": "2024 단독 (3문항 척도 — 연도간 비교 불가)",
+      "likert_range": [1, 4],
+      "direction": "protective (higher = better)"
+    },
+    "normalized": {
+      "mean": 0.7206,
+      "std": 0.2378,
+      "warning_threshold": 0.4828,
+      "crisis_threshold": 0.2450
+    }
+  },
+
+  "card_space": {
+    "x_range": [-5, 5],
+    "y_range": [-5, 5],
+    "max_distance": 7.0711,
+    "negative_quadrants": ["red", "blue"],
+    "negative_condition": "x < 0"
+  },
+
+  "classification": {
+    "z_score_warning": 1.0,
+    "z_score_crisis": 2.0,
+    "flag_warning_count": 1,
+    "flag_crisis_count": 2,
+    "min_cards_for_analysis": 5
+  },
+
+  "auxiliary_flags": {
+    "HIGH_NEGATIVE_RATIO": {
+      "description": "negative cards / total cards >= 0.8",
+      "threshold": 0.8
+    },
+    "HIGH_INTENSITY": {
+      "description": ">=2 negative cards with Euclidean distance >= 5",
+      "min_count": 2,
+      "min_distance": 5.0
+    },
+    "PERSISTENT_NEGATIVE": {
+      "description": "daily neg_score variance < 0.04 AND weekly neg_score > 0.3",
+      "note": "card scores are in [0,1] so max possible variance is 0.25; 0.04 targets truly flat (stuck) patterns",
+      "max_variance": 0.04,
+      "min_weekly_score": 0.3
+    }
+  }
+}

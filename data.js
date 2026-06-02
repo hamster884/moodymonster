@@ -69,7 +69,7 @@ const EMOTION_TO_CARD = (() => {
   EMOTION_CATEGORIES.forEach(cat => {
     cat.groups.forEach(group => {
       group.emotions.forEach(emotion => {
-        if (!map[emotion]) map[emotion] = `cards/${String(idx).padStart(3, '0')}.png`;
+        if (!map[emotion]) map[emotion] = `${String(idx).padStart(3, '0')}.png`;
         idx++;
       });
     });
