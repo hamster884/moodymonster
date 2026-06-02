@@ -455,6 +455,18 @@
     '평온한', '감사하는',
   ]);
 
+  // 감정별 카드 이미지 (한국어 파일명 직접 매핑)
+  const EMOTION_IMAGE = {
+    '행복한':  '행복한.png',
+    '열광적인': '열광적인.png',
+    '슬픈':    '슬픈.png',
+    '외로운':  '외로운.png',
+    '좌절한':  '좌절한.png',
+    '분노한':  '분노한.png',
+    '평온한':  '평온한.png',
+    '감사하는': '감사하는.png',
+  };
+
   let state = 'welcome';
   let selectedCat   = null;
   let selectedGroup = null;
@@ -516,7 +528,7 @@
       if (isAvailable) {
         btn.addEventListener('click', () => {
           selectedEmotion = name;
-          const imgSrc = EMOTION_TO_CARD[name];
+          const imgSrc = EMOTION_IMAGE[name] || EMOTION_TO_CARD[name];
           if (imgSrc) {
             cardCharImg.src = imgSrc;
             cardCharImg.style.opacity = '0';
@@ -619,7 +631,7 @@
     if (selectedEmotion) {
       const cardData = {
         emotion: selectedEmotion,
-        cardSrc: EMOTION_TO_CARD[selectedEmotion] || '',
+        cardSrc: EMOTION_IMAGE[selectedEmotion] || EMOTION_TO_CARD[selectedEmotion] || '',
         memo: memoTa.value,
         question: EMOTION_QUESTIONS[selectedEmotion] || '오늘 어떤 하루였어?',
       };
